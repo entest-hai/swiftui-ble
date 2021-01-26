@@ -60,7 +60,8 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate {
     func scan(){
         print("start scanning ")
         self.isScanning = true
-        myCentral.scanForPeripherals(withServices: nil, options: nil)
+                myCentral.scanForPeripherals(withServices: nil, options: nil)
+//        self.peripherals.append(Peripheral(id: 1, name: "HeartRate", rssi: 100, uuid: "ABCD"))
     }
     func stopScanning() {
         print("stopScanning")
@@ -74,8 +75,18 @@ struct BLEPeripheralTableView : View {
     var body: some View {
         NavigationView{
             List(self.sot.peripherals){device in
-                Text("uuid:\(String(device.uuid.prefix(4)))-name:\(device.name)-rssi:\(device.rssi)")
-                .lineLimit(1)
+                HStack{
+                    Text("uuid:\(String(device.uuid.prefix(4)))-name:\(device.name)-rssi:\(device.rssi)")
+                        .lineLimit(1)
+                    Spacer()
+                    Button(action: {self.didTapConnectButton()}){
+                        Text("Connect")
+                            .frame(width: 80, height: 30)
+                            .background(Color.green)
+                            .foregroundColor(Color.white)
+                            .cornerRadius(5)
+                    }
+                }
             }
             .navigationBarTitle(Text("BLE"))
             .navigationBarItems(trailing: Button(action: {self.scanBLEDevices()}){
@@ -86,6 +97,10 @@ struct BLEPeripheralTableView : View {
     
     func scanBLEDevices(){
         self.sot.isScanning ? self.sot.stopScanning() : self.sot.scan()
+    }
+    
+    func didTapConnectButton(){
+        print("connect to device")
     }
 }
 
