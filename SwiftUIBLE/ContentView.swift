@@ -4,7 +4,9 @@
 //
 //  Created by hai on 26/1/21.
 //  Copyright © 2021 biorithm. All rights reserved.
-//
+//  26 JAN 2021 scan BLE with swiftui
+//  - need override init() to create CBCentralManager()
+//  - implement CBCentralManagerDelegate with
 
 import SwiftUI
 import CoreBluetooth
@@ -37,7 +39,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate {
             print("BLE power off")
         }
     }
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+    func centralManager(_ central: CBCentralManager,
+                        didDiscover peripheral: CBPeripheral,
+                        advertisementData: [String : Any], rssi RSSI: NSNumber) {
         var peripheralName: String!
         if let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String {
             peripheralName = name
