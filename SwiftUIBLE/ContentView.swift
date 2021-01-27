@@ -7,6 +7,11 @@
 //  26 JAN 2021 scan BLE with swiftui
 //  - need override init() to create CBCentralManager()
 //  - implement CBCentralManagerDelegate with
+// 27 JAN 2020 select a peripheral then connect
+//  - select a peripheral
+//  - connect a peripheral
+//  - discover services
+//  - list show services 
 
 import Foundation
 import SwiftUI
