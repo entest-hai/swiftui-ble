@@ -42,6 +42,8 @@ struct ConnectedDeviceView: View {
 }
 
 class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+    let sampleServiceUUID = CBUUID(string: "180F")
+    let sampledPeripheralUUID = CBUUID(string: "69BDBEDB-0998-48F5-9456-3EB055408B9E")
     @Published var peripherals = [CBPeripheral]()
     @Published var isSwitchedOn = false
     @Published var isScanning = false
@@ -61,12 +63,28 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         if central.state == .poweredOn {
             isSwitchedOn = true
             print("BLE power on")
+            let matchingOptions = [CBConnectionEventMatchingOption.serviceUUIDs: [sampleServiceUUID]]
+            self.myCentral?.registerForConnectionEvents(options: matchingOptions)
         }
         else {
             isSwitchedOn = false
             print("BLE power off")
         }
     }
+    
+    func centralManager(_ central: CBCentralManager,
+                        connectionEventDidOccur event: CBConnectionEvent,
+                        for peripheral: CBPeripheral) {
+        switch event {
+        case .peerConnected:
+            print("connected to \(peripheral)")
+            self.connectDevice(device: peripheral)
+            
+        default:
+            print("No interested")
+        }
+    }
+    
     func centralManager(_ central: CBCentralManager,
                         didDiscover peripheral: CBPeripheral,
                         advertisementData: [String : Any], rssi RSSI: NSNumber) {
@@ -158,9 +176,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
     
     func connectDevice(device: CBPeripheral) {
-        self.myCentral?.connect(device, options: nil)
         self.connectedPeripheral =  device
         self.connectedPeripheral.delegate = self
+        self.myCentral?.connect(device, options: nil)
     }
 }
 
@@ -202,10 +220,9 @@ struct BLEPeripheralTableView : View {
     }
     
     func didTapConnectButton(device: CBPeripheral){
-        print("connect to device")
         self.isConnectedDevice = true
         self.connectedDevice = device
-        self.sot.connectDevice(device: device)
+//        self.sot.connectDevice(device: device)
     }
 }
 
