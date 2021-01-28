@@ -38,6 +38,7 @@ extension Service: Identifiable {
     
 }
 
+// TODO refactor to use sot directly without services=[Service]
 struct ConnectedDeviceView: View {
     @ObservedObject var sot: BLEManager
     private var services = [Service]()
@@ -261,6 +262,7 @@ struct BLEPeripheralTableView : View {
 
 struct ContentView: View {
     var body: some View {
-        BLEPeripheralTableView()
+//        BLEPeripheralTableView()
+        ListSectionView()
     }
 }
