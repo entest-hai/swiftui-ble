@@ -7,11 +7,15 @@
 //  26 JAN 2021 scan BLE with swiftui
 //  - need override init() to create CBCentralManager()
 //  - implement CBCentralManagerDelegate with
-// 27 JAN 2020 select a peripheral then connect
+// 27 JAN 2021 select a peripheral then connect
 //  - select a peripheral
 //  - connect a peripheral
 //  - discover services
 //  - list show services 
+// 28 JAN 2021 list section
+//  - service session
+//  - characteristics within a session
+//  - TODO: isConnectable?
 
 import Foundation
 import SwiftUI
@@ -25,17 +29,47 @@ extension CBService: Identifiable {
     
 }
 
+struct Service {
+    let id: CBUUID
+    var characteristics: [CBUUID]
+}
+
+extension Service: Identifiable {
+    
+}
+
 struct ConnectedDeviceView: View {
     @ObservedObject var sot: BLEManager
+    private var services = [Service]()
+    
+    init(_ sot: BLEManager) {
+        self.sot = sot
+        for idx in 0..<sot.gatProfile.count {
+            self.services.append(Service(id: sot.gatProfile[idx].uuid, characteristics: []))
+            if let characteristics = sot.gatProfile[idx].characteristics {
+                for ch in 0..<characteristics.count {
+                    let characteristic = characteristics[ch].uuid
+                    self.services[idx].characteristics.append(characteristic)
+                }
+            } else {
+                
+            }
+        }
+    }
+    
     var body: some View {
         VStack{
             Text("\(String(self.sot.connectedPeripheral.identifier.uuidString.prefix(4))) - \(self.sot.connectedPeripheral.name ?? "")")
                 .lineLimit(1)
                 .font(.largeTitle)
-            
-            List(self.sot.gatProfile){gat in
-                Text("\(String(gat.uuid.uuidString.prefix(4))) - \(gat.uuid)")
-                    .lineLimit(1)
+            List{
+                ForEach(self.services){service in
+                    Section(header: Text("\(String(service.id.uuidString.prefix(6)))-\(service.id)").lineLimit(1)){
+                        ForEach((0..<service.characteristics.count), id: \.self){
+                            Text("\(service.characteristics[$0].uuidString)-\(service.characteristics[$0])").lineLimit(1)
+                        }
+                    }
+                }
             }
         }
     }
@@ -63,8 +97,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         if central.state == .poweredOn {
             isSwitchedOn = true
             print("BLE power on")
-            let matchingOptions = [CBConnectionEventMatchingOption.serviceUUIDs: [sampleServiceUUID]]
-            self.myCentral?.registerForConnectionEvents(options: matchingOptions)
+            // Classic Bluetooth 2019
+            //            let matchingOptions = [CBConnectionEventMatchingOption.serviceUUIDs: [sampleServiceUUID]]
+            //            self.myCentral?.registerForConnectionEvents(options: matchingOptions)
         }
         else {
             isSwitchedOn = false
@@ -158,9 +193,6 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             let valueHex = nsdataStr.description.trimmingCharacters(in:charSet).replacingOccurrences(of: " ", with: "")
             self.readCharacteristicHex = "0x\(valueHex)"
         }
-        
-        print("Call delegate")
-        //        delegate?.blePeripheralOnRead?(peripheral: self)
     }
     
     func scan(){
@@ -178,6 +210,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     func connectDevice(device: CBPeripheral) {
         self.connectedPeripheral =  device
         self.connectedPeripheral.delegate = self
+        self.gatProfile.removeAll()
         self.myCentral?.connect(device, options: nil)
     }
 }
@@ -189,7 +222,7 @@ struct BLEPeripheralTableView : View {
     var body: some View {
         NavigationView{
             ZStack{
-                NavigationLink(destination: ConnectedDeviceView(sot: self.sot),
+                NavigationLink(destination: ConnectedDeviceView(self.sot),
                                isActive: self.$isConnectedDevice){
                                 EmptyView()}
                 List(self.sot.peripherals){device in
@@ -222,7 +255,7 @@ struct BLEPeripheralTableView : View {
     func didTapConnectButton(device: CBPeripheral){
         self.isConnectedDevice = true
         self.connectedDevice = device
-//        self.sot.connectDevice(device: device)
+        self.sot.connectDevice(device: device)
     }
 }
 
