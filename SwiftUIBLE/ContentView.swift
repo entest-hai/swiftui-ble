@@ -41,33 +41,17 @@ extension Service: Identifiable {
 // TODO refactor to use sot directly without services=[Service]
 struct ConnectedDeviceView: View {
     @ObservedObject var sot: BLEManager
-    private var services = [Service]()
-    
-    init(_ sot: BLEManager) {
-        self.sot = sot
-        for idx in 0..<sot.gatProfile.count {
-            self.services.append(Service(id: sot.gatProfile[idx].uuid, characteristics: []))
-            if let characteristics = sot.gatProfile[idx].characteristics {
-                for ch in 0..<characteristics.count {
-                    let characteristic = characteristics[ch].uuid
-                    self.services[idx].characteristics.append(characteristic)
-                }
-            } else {
-                
-            }
-        }
-    }
-    
     var body: some View {
         VStack{
             Text("\(String(self.sot.connectedPeripheral.identifier.uuidString.prefix(4))) - \(self.sot.connectedPeripheral.name ?? "")")
                 .lineLimit(1)
                 .font(.largeTitle)
             List{
-                ForEach(self.services){service in
-                    Section(header: Text("\(String(service.id.uuidString.prefix(6)))-\(service.id)").lineLimit(1)){
-                        ForEach((0..<service.characteristics.count), id: \.self){
-                            Text("\(service.characteristics[$0].uuidString)-\(service.characteristics[$0])").lineLimit(1)
+                
+                ForEach(self.sot.gatProfile){ service in
+                    Section(header: Text("\(String(service.uuid.uuidString.prefix(6)))-\(service.uuid)").lineLimit(1)){
+                        ForEach(service.characteristics ?? [], id: \.self){characteristic in
+                            Text("\(characteristic.uuid.uuidString)-\(characteristic.uuid)").lineLimit(1)
                         }
                     }
                 }
@@ -223,7 +207,7 @@ struct BLEPeripheralTableView : View {
     var body: some View {
         NavigationView{
             ZStack{
-                NavigationLink(destination: ConnectedDeviceView(self.sot),
+                NavigationLink(destination: ConnectedDeviceView(sot: self.sot),
                                isActive: self.$isConnectedDevice){
                                 EmptyView()}
                 List(self.sot.peripherals){device in
@@ -262,7 +246,7 @@ struct BLEPeripheralTableView : View {
 
 struct ContentView: View {
     var body: some View {
-//        BLEPeripheralTableView()
-        ListSectionView()
+        BLEPeripheralTableView()
+//        ListSectionView()
     }
 }
