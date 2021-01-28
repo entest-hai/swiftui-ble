@@ -41,13 +41,10 @@ extension Service: Identifiable {
 // TODO refactor to use sot directly without services=[Service]
 struct ConnectedDeviceView: View {
     @ObservedObject var sot: BLEManager
+    @Binding var isPresented: Bool
     var body: some View {
-        VStack{
-            Text("\(String(self.sot.connectedPeripheral.identifier.uuidString.prefix(4))) - \(self.sot.connectedPeripheral.name ?? "")")
-                .lineLimit(1)
-                .font(.largeTitle)
+        NavigationView{
             List{
-                
                 ForEach(self.sot.gatProfile){ service in
                     Section(header: Text("\(String(service.uuid.uuidString.prefix(6)))-\(service.uuid)").lineLimit(1)){
                         ForEach(service.characteristics ?? [], id: \.self){characteristic in
@@ -56,6 +53,13 @@ struct ConnectedDeviceView: View {
                     }
                 }
             }
+            .navigationBarTitle(Text("\(self.sot.connectedPeripheral != nil ? "\(String(self.sot.connectedPeripheral.identifier.uuidString.prefix(4))) - \(self.sot.connectedPeripheral.name ?? "")" : "Unknown")"))
+            .navigationBarItems(trailing: Button(action: {
+                // TODO cancel connection and clean GAT
+                self.isPresented.toggle()
+            }){
+                Text("Done")
+            })
         }
     }
 }
@@ -66,8 +70,8 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var peripherals = [CBPeripheral]()
     @Published var isSwitchedOn = false
     @Published var isScanning = false
+    @Published var isConnectedDevice = false
     @Published var gatProfile = [CBService]()
-    
     var readCharacteristicValue: String = ""
     var readCharacteristicHex: String = ""
     var myCentral: CBCentralManager!
@@ -127,6 +131,8 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         print("connected to \(peripheral.name ?? "unknown")")
         peripheral.readRSSI()
         peripheral.discoverServices(nil)
+        //
+        self.isConnectedDevice = true
     }
     
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
@@ -207,7 +213,7 @@ struct BLEPeripheralTableView : View {
     var body: some View {
         NavigationView{
             ZStack{
-                NavigationLink(destination: ConnectedDeviceView(sot: self.sot),
+                NavigationLink(destination: ConnectedDeviceView(sot: self.sot, isPresented: self.$isConnectedDevice),
                                isActive: self.$isConnectedDevice){
                                 EmptyView()}
                 List(self.sot.peripherals){device in
@@ -244,9 +250,78 @@ struct BLEPeripheralTableView : View {
     }
 }
 
+struct BLEPeripheralTableViewTest : View {
+    @ObservedObject var sot = BLEManager()
+    @State var isConnectedDevice = false
+    @State var connectedDevice: CBPeripheral!
+    var body: some View {
+        ZStack {
+            NavigationView{
+                ZStack{
+                    List(self.sot.peripherals){device in
+                        HStack{
+                            Text("uuid: \(String(device.identifier.uuidString.prefix(4))) -name:\(String(device.name?.prefix(6) ?? "Unknow")) -rssi:")
+                                .lineLimit(1)
+                            Spacer()
+                            Button(action: {}){
+                                Text("Connect")
+                                    .frame(width: 80, height: 30)
+                                    .background(Color.green)
+                                    .foregroundColor(Color.white)
+                                    .cornerRadius(5)
+                                    .gesture(TapGesture().onEnded({self.didTapConnectButton(device: device)}))
+                            }
+                        }
+                    }
+                }
+                .navigationBarTitle(Text("BLE"))
+                .navigationBarItems(trailing: Button(action: {
+                    //                    self.isConnectedDevice.toggle()
+                    self.scanBLEDevices()
+                    
+                }){
+                    Text(self.sot.isScanning ? "stop" : "scan" )
+                })
+            }
+            ZStack {
+                HStack {
+                    Spacer()
+                    VStack {
+                        Spacer()
+                        HStack {
+                            //                            ListSectionView(isPresented: self.$isConnectedDevice)
+                            ConnectedDeviceView(sot: self.sot, isPresented: self.$isConnectedDevice)
+                        }
+                    }
+                    .padding(.top,
+                             UIApplication.shared.windows.filter{$0.isKeyWindow}.first?.safeAreaInsets.top)
+                    
+                    Spacer()
+                }
+            }.background(Color.white)
+                .edgesIgnoringSafeArea(.all)
+                .offset(x: 0,
+                        y: self.isConnectedDevice ? 0 : UIApplication.shared.windows.filter{$0.isKeyWindow}.first?.frame.height ?? 0)
+        }
+        
+    }
+    
+    func scanBLEDevices(){
+        self.sot.isScanning ? self.sot.stopScanning() : self.sot.scan()
+    }
+    
+    func didTapConnectButton(device: CBPeripheral){
+        self.isConnectedDevice = true
+        self.connectedDevice = device
+        self.sot.connectDevice(device: device)
+    }
+}
+
 struct ContentView: View {
     var body: some View {
-        BLEPeripheralTableView()
-//        ListSectionView()
+        BLEPeripheralTableViewTest()
+        //        ListSectionView()
+        //        TestHomeView()
+        //        TestFullSceenView()
     }
 }
