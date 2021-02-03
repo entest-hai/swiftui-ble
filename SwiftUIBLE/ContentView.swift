@@ -16,6 +16,16 @@
 //  - service session
 //  - characteristics within a session
 //  - TODO: isConnectable?
+// 31 JAN 2021 BLEPeripheral delegate
+//  - self.blePeripheral = device
+//  - self.blePeripheral.delegate = self
+//  - didDiscoverServices
+//  - didDiscoverCharacteristics
+//  - didReadRSSI
+// 02 FEB 2021 how BLE read value for a characteristic
+//  - check permission characteristic.properties.contains(.read)
+//  - update didUpdateValue For Characteristic
+//  - append characteristic to sot.readingCharacteristicBuffer[CBCharacteristic]
 
 import Foundation
 import SwiftUI
@@ -38,17 +48,62 @@ extension Service: Identifiable {
     
 }
 
+extension CBCharacteristic: Identifiable {
+    
+}
+
+struct ConnectedCharacteristicView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject var sot: BLEManager
+    var body: some View {
+        NavigationView{
+            VStack{
+                List{
+                    ForEach(self.sot.readingCharacteristicBuffer){char in
+                        Text("\(char)")
+                    }
+                }
+//                Text("Characteristic-\(self.sot.interestedCharacteristic)")
+                Button(action: {
+                    self.sot.readCharacteristic(characteristic: self.sot.interestedCharacteristic)
+                }){
+                    Text("Read")
+                        .frame(width: 200, height: 50)
+                        .background(Color.green)
+                        .foregroundColor(Color.white)
+                        .cornerRadius(10)
+                }
+            }
+            .navigationBarItems(trailing: Button(action: {
+                self.isPresented.toggle()
+            }){
+                Text("Done")
+            })
+        }
+    }
+}
+
 // TODO refactor to use sot directly without services=[Service]
 struct ConnectedDeviceView: View {
     @ObservedObject var sot: BLEManager
     @Binding var isPresented: Bool
+    @State var isPresentedCharacteristicView: Bool = false
     var body: some View {
         NavigationView{
             List{
                 ForEach(self.sot.gatProfile){ service in
                     Section(header: Text("\(String(service.uuid.uuidString.prefix(6)))-\(service.uuid)").lineLimit(1)){
                         ForEach(service.characteristics ?? [], id: \.self){characteristic in
-                            Text("\(characteristic.uuid.uuidString)-\(characteristic.uuid)").lineLimit(1)
+                            Text("\(characteristic.uuid.uuidString)-\(characteristic.uuid)")
+                                .lineLimit(1)
+                                .onTapGesture {
+                                    self.sot.interestedCharacteristic = characteristic
+                                    self.isPresentedCharacteristicView.toggle()
+                            }
+                            .sheet(isPresented: self.$isPresentedCharacteristicView){
+                                ConnectedCharacteristicView(isPresented: self.$isPresentedCharacteristicView,
+                                                            sot: self.sot)
+                            }
                         }
                     }
                 }
@@ -72,8 +127,12 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var isScanning = false
     @Published var isConnectedDevice = false
     @Published var gatProfile = [CBService]()
+    @Published var readingCharacteristicBuffer = [CBCharacteristic]()
     var readCharacteristicValue: String = ""
     var readCharacteristicHex: String = ""
+    var interestedCharacteristic: CBCharacteristic!
+    var characteristicDescription = [String]()
+    var permissions = [String]()
     var myCentral: CBCentralManager!
     var connectedPeripheral: CBPeripheral!
     
@@ -168,9 +227,9 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                     didUpdateValueFor characteristic: CBCharacteristic,
                     error: Error?) {
         print("Read value from BLE Characteristic \(characteristic)")
+        self.readingCharacteristicBuffer.append(characteristic)
         
         if let value = characteristic.value {
-            
             if let stringValue = String(data: value, encoding: .ascii) {
                 self.readCharacteristicValue = stringValue
             }
@@ -178,7 +237,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             if characteristic.uuid == CBUUID(string: "0x2A19") {
                 self.readCharacteristicValue = "\(characteristic.value![0])"
             }
-            
+
             let charSet = CharacterSet(charactersIn: "<>")
             let nsdataStr = NSData.init(data: value)
             let valueHex = nsdataStr.description.trimmingCharacters(in:charSet).replacingOccurrences(of: " ", with: "")
@@ -199,10 +258,22 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
     
     func connectDevice(device: CBPeripheral) {
+        self.myCentral?.stopScan()
         self.connectedPeripheral =  device
         self.connectedPeripheral.delegate = self
         self.gatProfile.removeAll()
         self.myCentral?.connect(device, options: nil)
+    }
+    
+    func readCharacteristic(characteristic: CBCharacteristic){
+        if characteristic.properties.contains(.read) {
+            print("read charac \(characteristic.uuid): properities contains .read")
+            self.connectedPeripheral?.readValue(for: characteristic)
+        }
+        if characteristic.properties.contains(.notify) {
+            print("read charac \(characteristic.uuid): properties contain .notify")
+            self.connectedPeripheral?.setNotifyValue(true, for: characteristic)
+        }
     }
 }
 
