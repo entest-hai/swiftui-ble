@@ -26,7 +26,7 @@
 //  - check permission characteristic.properties.contains(.read)
 //  - update didUpdateValue For Characteristic
 //  - append characteristic to sot.readingCharacteristicBuffer[CBCharacteristic]
-//  - list to show reading characteristic buffer 
+//  - list to show reading characteristic buffer
 
 import Foundation
 import SwiftUI
@@ -60,7 +60,7 @@ struct ConnectedCharacteristicView: View {
         NavigationView{
             VStack{
                 List{
-                    Section(header: Text("\(self.sot.interestedCharacteristic.uuid)-\(String(self.sot.interestedCharacteristic.uuid.uuidString.prefix(6)))").lineLimit(1)){
+                    Section(header: Text("\(self.sot.interestedCharacteristic.uuid)-" + "\(String(self.sot.interestedCharacteristic.uuid.uuidString.prefix(6)))").lineLimit(1)){
                         ForEach(self.sot.readingCharacteristicBuffer){char in
                             Text("\(char)")
                         }
@@ -94,20 +94,21 @@ struct ConnectedDeviceView: View {
         NavigationView{
             List{
                 ForEach(self.sot.gatProfile){ service in
-                    Section(header: Text("\(String(service.uuid.uuidString.prefix(6)))-\(service.uuid)").lineLimit(1)){
-                        ForEach(service.characteristics ?? [], id: \.self){characteristic in
-                            Text("\(characteristic.uuid.uuidString)-\(characteristic.uuid)")
-                                .lineLimit(1)
-                                .onTapGesture {
-                                    self.sot.interestedCharacteristic = characteristic
-                                    self.sot.readingCharacteristicBuffer.removeAll()
-                                    self.isPresentedCharacteristicView.toggle()
+                    Section(header: Text("\(String(service.uuid.uuidString.prefix(6)))-" +
+                        "\(service.uuid)").lineLimit(1)){
+                            ForEach(service.characteristics ?? [], id: \.self){characteristic in
+                                Text("\(characteristic.uuid.uuidString)-\(characteristic.uuid)")
+                                    .lineLimit(1)
+                                    .onTapGesture {
+                                        self.sot.interestedCharacteristic = characteristic
+                                        self.sot.readingCharacteristicBuffer.removeAll()
+                                        self.isPresentedCharacteristicView.toggle()
+                                }
+                                .sheet(isPresented: self.$isPresentedCharacteristicView){
+                                    ConnectedCharacteristicView(isPresented: self.$isPresentedCharacteristicView,
+                                                                sot: self.sot)
+                                }
                             }
-                            .sheet(isPresented: self.$isPresentedCharacteristicView){
-                                ConnectedCharacteristicView(isPresented: self.$isPresentedCharacteristicView,
-                                                            sot: self.sot)
-                            }
-                        }
                     }
                 }
             }
@@ -240,7 +241,7 @@ class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             if characteristic.uuid == CBUUID(string: "0x2A19") {
                 self.readCharacteristicValue = "\(characteristic.value![0])"
             }
-
+            
             let charSet = CharacterSet(charactersIn: "<>")
             let nsdataStr = NSData.init(data: value)
             let valueHex = nsdataStr.description.trimmingCharacters(in:charSet).replacingOccurrences(of: " ", with: "")
@@ -287,12 +288,14 @@ struct BLEPeripheralTableView : View {
     var body: some View {
         NavigationView{
             ZStack{
-                NavigationLink(destination: ConnectedDeviceView(sot: self.sot, isPresented: self.$isConnectedDevice),
+                NavigationLink(destination: ConnectedDeviceView(sot: self.sot,
+                                                                isPresented: self.$isConnectedDevice),
                                isActive: self.$isConnectedDevice){
                                 EmptyView()}
                 List(self.sot.peripherals){device in
                     HStack{
-                        Text("uuid: \(String(device.identifier.uuidString.prefix(4))) -name:\(String(device.name?.prefix(6) ?? "Unknow")) -rssi:")
+                        Text("uuid: \(String(device.identifier.uuidString.prefix(4)))" +
+                            " -name:\(String(device.name?.prefix(6) ?? "Unknow")) -rssi:")
                             .lineLimit(1)
                         Spacer()
                         Button(action: {}){
@@ -334,7 +337,8 @@ struct BLEPeripheralTableViewTest : View {
                 ZStack{
                     List(self.sot.peripherals){device in
                         HStack{
-                            Text("uuid: \(String(device.identifier.uuidString.prefix(4))) -name:\(String(device.name?.prefix(6) ?? "Unknow")) -rssi:")
+                            Text("uuid: \(String(device.identifier.uuidString.prefix(4))) " +
+                                " -name:\(String(device.name?.prefix(6) ?? "Unknow")) -rssi:")
                                 .lineLimit(1)
                             Spacer()
                             Button(action: {}){
