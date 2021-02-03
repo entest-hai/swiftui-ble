@@ -26,6 +26,7 @@
 //  - check permission characteristic.properties.contains(.read)
 //  - update didUpdateValue For Characteristic
 //  - append characteristic to sot.readingCharacteristicBuffer[CBCharacteristic]
+//  - list to show reading characteristic buffer 
 
 import Foundation
 import SwiftUI
@@ -59,11 +60,12 @@ struct ConnectedCharacteristicView: View {
         NavigationView{
             VStack{
                 List{
-                    ForEach(self.sot.readingCharacteristicBuffer){char in
-                        Text("\(char)")
+                    Section(header: Text("\(self.sot.interestedCharacteristic.uuid)-\(String(self.sot.interestedCharacteristic.uuid.uuidString.prefix(6)))").lineLimit(1)){
+                        ForEach(self.sot.readingCharacteristicBuffer){char in
+                            Text("\(char)")
+                        }
                     }
                 }
-//                Text("Characteristic-\(self.sot.interestedCharacteristic)")
                 Button(action: {
                     self.sot.readCharacteristic(characteristic: self.sot.interestedCharacteristic)
                 }){
@@ -98,6 +100,7 @@ struct ConnectedDeviceView: View {
                                 .lineLimit(1)
                                 .onTapGesture {
                                     self.sot.interestedCharacteristic = characteristic
+                                    self.sot.readingCharacteristicBuffer.removeAll()
                                     self.isPresentedCharacteristicView.toggle()
                             }
                             .sheet(isPresented: self.$isPresentedCharacteristicView){
